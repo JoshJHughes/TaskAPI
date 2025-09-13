@@ -3,7 +3,9 @@ import copy
 import pytest
 from datetime import datetime
 from src.internal.tasks import Task, PrioEnum
-from src.internal.taskdb import InMemoryTaskDB, NotFoundError
+from src.internal.taskdb import InMemoryTaskDB
+from src.internal.errors import NotFoundError
+
 
 @pytest.fixture()
 def in_mem_task_db():
@@ -15,7 +17,7 @@ def sample_task():
         id=1,
         title="Test Task",
         description="A test task",
-        priority=PrioEnum.Medium,
+        priority=PrioEnum.medium,
         due_date=datetime(2024, 12, 31, 23, 59, 59),
         completed=False
     )
@@ -27,7 +29,7 @@ def multiple_tasks():
             id=1,
             title="Task 1",
             description="First task",
-            priority=PrioEnum.High,
+            priority=PrioEnum.high,
             due_date=datetime(2024, 12, 31),
             completed=False
         ),
@@ -35,7 +37,7 @@ def multiple_tasks():
             id=2,
             title="Task 2",
             description="Second task",
-            priority=PrioEnum.Low,
+            priority=PrioEnum.low,
             due_date=datetime(2024, 11, 30),
             completed=True
         ),
@@ -43,7 +45,7 @@ def multiple_tasks():
             id=3,
             title="Task 3",
             description=None,
-            priority=PrioEnum.Medium,
+            priority=PrioEnum.medium,
             due_date=datetime(2024, 10, 15),
             completed=False
         )

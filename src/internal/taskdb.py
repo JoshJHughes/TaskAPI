@@ -1,23 +1,5 @@
-from typing import Protocol
+from src.internal.errors import NotFoundError
 from src.internal.tasks import Task, TaskID
-
-
-class NotFoundError(Exception):
-    pass
-
-
-class TaskDB(Protocol):
-    def post(self, task: Task) -> None:
-        ...
-
-    def get_all(self) -> list[Task]:
-        ...
-
-    def get_by_id(self, task_id: TaskID) -> Task:
-        ...
-
-    def delete(self, task_id: TaskID) -> None:
-        ...
 
 
 class InMemoryTaskDB:
