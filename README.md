@@ -30,10 +30,10 @@
   "due_date": "2025-09-18"
 }'`
 
-### get all tasks
+### get all tasks - incl filtering & search
 
 `curl --request GET \
-  --url 'http://localhost:8000/tasks?completed=false&priority=1' \
+  --url 'http://localhost:8000/tasks?completed=false&priority=1&search=desc' \
   --header 'Content-Type: application/json'`
 
 ### get task by id
