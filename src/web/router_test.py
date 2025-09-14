@@ -98,6 +98,42 @@ class TestTaskAPI:
         resp_data = resp.json()
         assert len(resp_data) == 2
 
+    def test_get_all_tasks_completed_true(self, client: TestClient, sample_post_req):
+        req = sample_post_req
+        resp1 = client.post("/tasks", content=req.model_dump_json())
+        resp2 = client.post("/tasks", content=req.model_dump_json())
+        assert resp1.status_code == fastapi.status.HTTP_200_OK
+        assert resp2.status_code == fastapi.status.HTTP_200_OK
+        resp2_data = resp2.json()
+        resp2_data["completed"] = True
+        updated_resp = client.put(f"/tasks/{resp2_data["id"]}", json=resp2_data)
+        assert updated_resp.status_code == fastapi.status.HTTP_200_OK
+
+        resp = client.get("/tasks?completed=true")
+        assert resp.status_code == fastapi.status.HTTP_200_OK
+
+        resp_data = resp.json()
+        for task in resp_data:
+            assert task["completed"] == True
+
+    def test_get_all_tasks_completed_false(self, client: TestClient, sample_post_req):
+        req = sample_post_req
+        resp1 = client.post("/tasks", content=req.model_dump_json())
+        resp2 = client.post("/tasks", content=req.model_dump_json())
+        assert resp1.status_code == fastapi.status.HTTP_200_OK
+        assert resp2.status_code == fastapi.status.HTTP_200_OK
+        resp2_data = resp2.json()
+        resp2_data["completed"] = True
+        updated_resp = client.put(f"/tasks/{resp2_data["id"]}", json=resp2_data)
+        assert updated_resp.status_code == fastapi.status.HTTP_200_OK
+
+        resp = client.get("/tasks?completed=false")
+        assert resp.status_code == fastapi.status.HTTP_200_OK
+
+        resp_data = resp.json()
+        for task in resp_data:
+            assert task["completed"] == False
+
     def test_get_task_by_id_success(self, client: TestClient, sample_post_req):
         req = sample_post_req
         post_resp = client.post("/tasks", content=req.model_dump_json())

@@ -67,7 +67,7 @@ def multiple_tasks():
 class TestInMemoryDB:
     def test_init(self, task_db):
         """Initialisation should create an empty db"""
-        assert len(task_db.get_all()) == 0
+        assert len(task_db.get_all(None)) == 0
 
     def test_post_inserts(self, task_db, sample_task):
         """Post should insert a new task"""
@@ -89,15 +89,33 @@ class TestInMemoryDB:
 
     def test_get_all_empty(self, task_db):
         """Get all should return empty list for empty db"""
-        assert len(task_db.get_all()) == 0
+        assert len(task_db.get_all(None)) == 0
 
     def test_get_all(self, task_db, multiple_tasks):
         """Get all should return all tasks in db"""
         for task in multiple_tasks:
             task_db.post(task)
 
-        all_tasks = task_db.get_all()
+        all_tasks = task_db.get_all(None)
         assert all_tasks == multiple_tasks
+
+    def test_get_all_completed_true(self, task_db, multiple_tasks):
+        """Get all should return all tasks in db"""
+        for task in multiple_tasks:
+            task_db.post(task)
+
+        all_tasks = task_db.get_all(completed=True)
+        for task in all_tasks:
+            assert task.completed == True
+
+    def test_get_all_completed_false(self, task_db, multiple_tasks):
+        """Get all should return all tasks in db"""
+        for task in multiple_tasks:
+            task_db.post(task)
+
+        all_tasks = task_db.get_all(completed=False)
+        for task in all_tasks:
+            assert task.completed == False
 
     def test_get_by_id_missing(self, task_db, sample_task):
         """Get by ID should raise NotFoundError if task missing"""

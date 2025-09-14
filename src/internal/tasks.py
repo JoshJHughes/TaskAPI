@@ -43,7 +43,7 @@ class TaskReader(Protocol):
     def get_by_id(self, task_id: TaskID) -> Task:
         ...
 
-    def get_all(self) -> list[Task]:
+    def get_all(self, completed: bool | None) -> list[Task]:
         ...
 
 class TaskWriter(Protocol):
@@ -74,8 +74,8 @@ def create_task(db: TaskReadWriter, req: CreateTaskReq) -> Task:
     db.post(task)
     return task
 
-def get_all_tasks(db: TaskReader) -> list[Task]:
-    return db.get_all()
+def get_all_tasks(db: TaskReader, completed: bool | None) -> list[Task]:
+    return db.get_all(completed)
 
 def get_task_by_id(db: TaskReader, task_id: TaskID) -> Task:
     return db.get_by_id(task_id)

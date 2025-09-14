@@ -104,7 +104,7 @@ class TestGetAllTasks:
 
     def test_get_all_tasks_empty_db(self, task_db):
         """Test getting all tasks from empty database returns empty list."""
-        result = get_all_tasks(task_db)
+        result = get_all_tasks(task_db, None)
         assert result == []
         assert isinstance(result, list)
 
@@ -130,11 +130,65 @@ class TestGetAllTasks:
         task_db.post(task1)
         task_db.post(task2)
 
-        result = get_all_tasks(task_db)
+        result = get_all_tasks(task_db, None)
 
         assert len(result) == 2
         assert task1 in result
         assert task2 in result
+
+    def test_get_all_tasks_completed_true(self, task_db):
+        """Test getting all tasks when tasks exist in database."""
+        task1 = Task(
+            id=1,
+            title="Task 1",
+            description="First task",
+            priority=PrioEnum.high,
+            due_date=datetime(2024, 1, 1),
+            completed=False
+        )
+        task2 = Task(
+            id=2,
+            title="Task 2",
+            description="Second task",
+            priority=PrioEnum.low,
+            due_date=datetime(2024, 1, 2),
+            completed=True
+        )
+
+        task_db.post(task1)
+        task_db.post(task2)
+
+        result = get_all_tasks(task_db, True)
+
+        assert len(result) == 1
+        assert task2 in result
+
+    def test_get_all_tasks_completed_false(self, task_db):
+        """Test getting all tasks when tasks exist in database."""
+        task1 = Task(
+            id=1,
+            title="Task 1",
+            description="First task",
+            priority=PrioEnum.high,
+            due_date=datetime(2024, 1, 1),
+            completed=False
+        )
+        task2 = Task(
+            id=2,
+            title="Task 2",
+            description="Second task",
+            priority=PrioEnum.low,
+            due_date=datetime(2024, 1, 2),
+            completed=True
+        )
+
+        task_db.post(task1)
+        task_db.post(task2)
+
+        result = get_all_tasks(task_db, False)
+
+        assert len(result) == 1
+        assert task1 in result
 
 
 class TestGetTaskById:

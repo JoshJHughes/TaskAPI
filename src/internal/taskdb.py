@@ -13,9 +13,12 @@ class InMemoryTaskDB:
         """Creates or updates a new task."""
         self._db[task.id] = task
 
-    def get_all(self) -> list[Task]:
+    def get_all(self, completed: bool | None) -> list[Task]:
         """Get all tasks. Return empty list if no tasks exist"""
-        return list(self._db.values())
+        tasks = list(self._db.values())
+        if completed is not None:
+            tasks = [task for task in tasks if task.completed == completed]
+        return tasks
 
     def get_by_id(self, task_id: TaskID) -> Task:
         """Get a task by ID. Raises NotFoundError if task doesn't exist."""
@@ -83,11 +86,16 @@ class SQLiteTaskDB:
         """, data)
         self._con.commit()
 
-    def get_all(self) -> list[Task]:
+    def get_all(self, completed: bool | None) -> list[Task]:
         """Get all tasks. Return empty list if no tasks exist"""
-        res = self._cur.execute(f"""
-            SELECT * FROM {self._table_name}
-        """)
+        query = f"SELECT * FROM {self._table_name}"
+        params = []
+
+        if completed is not None:
+            query += " WHERE completed = ?"
+            params.append(completed)
+
+        res = self._cur.execute(query, params)
         rows = res.fetchall()
         return [convert_sqlite_to_task(row) for row in rows]
 

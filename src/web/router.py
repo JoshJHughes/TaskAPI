@@ -67,8 +67,8 @@ def post_tasks(req: PostTasksReq, taskdb: tasks.TaskReadWriter = Depends(get_tas
 
 
 @router.get("/tasks", response_model=List[TaskResp])
-def get_tasks(taskdb: tasks.TaskReader = Depends(get_taskdb)):
-    all_tasks = tasks.get_all_tasks(taskdb)
+def get_tasks(completed: bool | None = None, taskdb: tasks.TaskReader = Depends(get_taskdb)):
+    all_tasks = tasks.get_all_tasks(taskdb, completed)
     return [
         TaskResp(
             id=task.id,
