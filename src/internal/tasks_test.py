@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 import pytest
 from datetime import datetime
 from unittest.mock import patch
@@ -5,14 +8,24 @@ from src.internal.tasks import (
     Task, CreateTaskReq, UpdateTaskReq, PrioEnum,
     create_task, get_all_tasks, get_task_by_id, update_task, delete_task
 )
-from src.internal.taskdb import InMemoryTaskDB
+from src.internal.taskdb import InMemoryTaskDB, SQLiteTaskDB
 from src.internal.errors import AlreadyExistsError, NotFoundError
 
 
-@pytest.fixture
-def db():
-    """Fixture providing a fresh InMemoryTaskDB instance for each test."""
-    return InMemoryTaskDB()
+@pytest.fixture(params=["inmemory", "sqlite"])
+def task_db(request):
+    """Fixture that provides both InMemoryTaskDB and SQLiteTaskDB instances"""
+    if request.param == "inmemory":
+        yield InMemoryTaskDB()
+    elif request.param == "sqlite":
+        temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        temp_db.close()
+
+        db = SQLiteTaskDB(temp_db.name, "tasks")
+        yield db
+
+        db.close()
+        os.unlink(temp_db.name)
 
 
 @pytest.fixture
@@ -43,11 +56,11 @@ class TestCreateTask:
     """Tests for create_task function."""
 
     @patch('src.internal.tasks.random.randint')
-    def test_create_task_success(self, mock_randint, db, create_task_req):
+    def test_create_task_success(self, mock_randint, task_db, create_task_req):
         """Test successful task creation when ID is not in use."""
         mock_randint.return_value = 456
 
-        result = create_task(db, create_task_req)
+        result = create_task(task_db, create_task_req)
 
         assert result.id == 456
         assert result.title == "New Task"
@@ -57,20 +70,20 @@ class TestCreateTask:
         assert result.completed is False
 
         # Verify task was saved to database
-        saved_task = db.get_by_id(456)
+        saved_task = task_db.get_by_id(456)
         assert saved_task == result
 
     @patch('src.internal.tasks.random.randint')
-    def test_create_task_already_exists_error(self, mock_randint, db, create_task_req, sample_task):
+    def test_create_task_already_exists_error(self, mock_randint, task_db, create_task_req, sample_task):
         """Test AlreadyExistsError when task ID already exists."""
         mock_randint.return_value = 123
         # Pre-populate database with existing task
-        db.post(sample_task)
+        task_db.post(sample_task)
 
         with pytest.raises(AlreadyExistsError, match="task with id 123 already exists"):
-            create_task(db, create_task_req)
+            create_task(task_db, create_task_req)
 
-    def test_create_task_with_none_description(self, db):
+    def test_create_task_with_none_description(self, task_db):
         """Test creating task with None description."""
         req = CreateTaskReq(
             title="Task without description",
@@ -80,7 +93,7 @@ class TestCreateTask:
         )
 
         with patch('src.internal.tasks.random.randint', return_value=789):
-            result = create_task(db, req)
+            result = create_task(task_db, req)
 
         assert result.description is None
         assert result.title == "Task without description"
@@ -89,13 +102,13 @@ class TestCreateTask:
 class TestGetAllTasks:
     """Tests for get_all_tasks function."""
 
-    def test_get_all_tasks_empty_db(self, db):
+    def test_get_all_tasks_empty_db(self, task_db):
         """Test getting all tasks from empty database returns empty list."""
-        result = get_all_tasks(db)
+        result = get_all_tasks(task_db)
         assert result == []
         assert isinstance(result, list)
 
-    def test_get_all_tasks_with_tasks(self, db):
+    def test_get_all_tasks_with_tasks(self, task_db):
         """Test getting all tasks when tasks exist in database."""
         task1 = Task(
             id=1,
@@ -114,10 +127,10 @@ class TestGetAllTasks:
             completed=True
         )
 
-        db.post(task1)
-        db.post(task2)
+        task_db.post(task1)
+        task_db.post(task2)
 
-        result = get_all_tasks(db)
+        result = get_all_tasks(task_db)
 
         assert len(result) == 2
         assert task1 in result
@@ -127,27 +140,27 @@ class TestGetAllTasks:
 class TestGetTaskById:
     """Tests for get_task_by_id function."""
 
-    def test_get_task_by_id_exists(self, db, sample_task):
+    def test_get_task_by_id_exists(self, task_db, sample_task):
         """Test getting task by ID when task exists."""
-        db.post(sample_task)
+        task_db.post(sample_task)
 
-        result = get_task_by_id(db, 123)
+        result = get_task_by_id(task_db, 123)
 
         assert result == sample_task
         assert result.id == 123
 
-    def test_get_task_by_id_not_found(self, db):
+    def test_get_task_by_id_not_found(self, task_db):
         """Test NotFoundError when task ID doesn't exist."""
         with pytest.raises(NotFoundError, match="task with id 999 not found"):
-            get_task_by_id(db, 999)
+            get_task_by_id(task_db, 999)
 
 
 class TestUpdateTask:
     """Tests for update_task function."""
 
-    def test_update_task_success_partial_update(self, db, sample_task):
+    def test_update_task_success_partial_update(self, task_db, sample_task):
         """Test successful partial task update."""
-        db.post(sample_task)
+        task_db.post(sample_task)
 
         update_req = UpdateTaskReq(
             id=123,
@@ -158,7 +171,7 @@ class TestUpdateTask:
             completed=None
         )
 
-        result = update_task(db, update_req)
+        result = update_task(task_db, update_req)
 
         assert result.id == 123
         assert result.title == "Updated Title"
@@ -169,12 +182,12 @@ class TestUpdateTask:
         assert result.completed is False
 
         # Verify update was persisted
-        saved_task = db.get_by_id(123)
+        saved_task = task_db.get_by_id(123)
         assert saved_task.title == "Updated Title"
 
-    def test_update_task_success_full_update(self, db, sample_task):
+    def test_update_task_success_full_update(self, task_db, sample_task):
         """Test successful full task update."""
-        db.post(sample_task)
+        task_db.post(sample_task)
 
         update_req = UpdateTaskReq(
             id=123,
@@ -185,7 +198,7 @@ class TestUpdateTask:
             completed=True
         )
 
-        result = update_task(db, update_req)
+        result = update_task(task_db, update_req)
 
         assert result.id == 123
         assert result.title == "Completely Updated Task"
@@ -194,7 +207,7 @@ class TestUpdateTask:
         assert result.due_date == datetime(2024, 12, 31, 23, 59, 59)
         assert result.completed is True
 
-    def test_update_task_not_found(self, db):
+    def test_update_task_not_found(self, task_db):
         """Test NotFoundError when trying to update non-existent task."""
         update_req = UpdateTaskReq(
             id=999,
@@ -206,11 +219,11 @@ class TestUpdateTask:
         )
 
         with pytest.raises(NotFoundError, match="task with id 999 not found"):
-            update_task(db, update_req)
+            update_task(task_db, update_req)
 
-    def test_update_task_all_none_fields(self, db, sample_task):
+    def test_update_task_all_none_fields(self, task_db, sample_task):
         """Test update with all None fields (should not change anything)."""
-        db.post(sample_task)
+        task_db.post(sample_task)
         original_task = sample_task.model_copy()
 
         update_req = UpdateTaskReq(
@@ -222,7 +235,7 @@ class TestUpdateTask:
             completed=None
         )
 
-        result = update_task(db, update_req)
+        result = update_task(task_db, update_req)
 
         # All fields should remain unchanged
         assert result.title == original_task.title
@@ -235,24 +248,24 @@ class TestUpdateTask:
 class TestDeleteTask:
     """Tests for delete_task function."""
 
-    def test_delete_task_exists(self, db, sample_task):
+    def test_delete_task_exists(self, task_db, sample_task):
         """Test successful deletion of existing task."""
-        db.post(sample_task)
+        task_db.post(sample_task)
 
         # Verify task exists before deletion
-        assert db.get_by_id(123) == sample_task
+        assert task_db.get_by_id(123) == sample_task
 
-        delete_task(db, 123)
+        delete_task(task_db, 123)
 
         # Verify task was deleted
         with pytest.raises(NotFoundError):
-            db.get_by_id(123)
+            task_db.get_by_id(123)
 
-    def test_delete_task_not_exists(self, db):
+    def test_delete_task_not_exists(self, task_db):
         """Test deletion of non-existent task should succeed without error."""
         # Should not raise any exception
-        delete_task(db, 999)
+        delete_task(task_db, 999)
 
-    def test_delete_task_empty_db(self, db):
+    def test_delete_task_empty_db(self, task_db):
         """Test deletion from empty database should succeed without error."""
-        delete_task(db, 123)
+        delete_task(task_db, 123)

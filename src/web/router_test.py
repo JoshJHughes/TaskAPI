@@ -1,3 +1,5 @@
+import os
+import tempfile
 from datetime import datetime
 
 import pytest
@@ -5,20 +7,32 @@ import fastapi
 from fastapi.testclient import TestClient
 
 from src.internal.dependencies import get_taskdb
-from src.internal.taskdb import InMemoryTaskDB
+from src.internal.taskdb import InMemoryTaskDB, SQLiteTaskDB
 from src.internal.tasks import PrioEnum
 from src.main import app
 from src.web.router import PostTasksReq, UpdateTaskReq
 
 
 class TestTaskAPI:
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self):
-        test_db = InMemoryTaskDB()
-        app.dependency_overrides[get_taskdb] = lambda: test_db
-        self.test_db = test_db
-        yield
-        app.dependency_overrides.clear()
+    @pytest.fixture(autouse=True, params=["inmemory", "sqlite"])
+    def setup_and_teardown(self, request):
+        if request.param == "inmemory":
+            test_db = InMemoryTaskDB()
+            app.dependency_overrides[get_taskdb] = lambda: test_db
+            self.test_db = test_db
+            yield
+            app.dependency_overrides.clear()
+        elif request.param == "sqlite":
+            temp_db = tempfile.NamedTemporaryFile(delete=True, suffix='.db')
+            temp_db.close()
+
+            test_db = SQLiteTaskDB(temp_db.name, "tasks", check_same_thread=False)
+            app.dependency_overrides[get_taskdb] = lambda: test_db
+            self.test_db = test_db
+            yield
+            app.dependency_overrides.clear()
+            test_db.close()
+            os.unlink(temp_db.name)
 
     @pytest.fixture
     def client(self):

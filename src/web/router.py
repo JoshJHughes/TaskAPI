@@ -40,12 +40,12 @@ class DeleteTaskResp(BaseModel):
 
 
 @router.get("/health")
-async def health():
+def health():
     return fastapi.Response(status_code=fastapi.status.HTTP_200_OK)
 
 
 @router.post("/tasks", response_model=TaskResp)
-async def post_tasks(req: PostTasksReq, taskdb: tasks.TaskReadWriter = Depends(get_taskdb)):
+def post_tasks(req: PostTasksReq, taskdb: tasks.TaskReadWriter = Depends(get_taskdb)):
     try:
         create_req = tasks.CreateTaskReq(
             title=req.title,
@@ -67,7 +67,7 @@ async def post_tasks(req: PostTasksReq, taskdb: tasks.TaskReadWriter = Depends(g
 
 
 @router.get("/tasks", response_model=List[TaskResp])
-async def get_tasks(taskdb: tasks.TaskReader = Depends(get_taskdb)):
+def get_tasks(taskdb: tasks.TaskReader = Depends(get_taskdb)):
     all_tasks = tasks.get_all_tasks(taskdb)
     return [
         TaskResp(
@@ -83,7 +83,7 @@ async def get_tasks(taskdb: tasks.TaskReader = Depends(get_taskdb)):
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResp)
-async def get_task(task_id: int, taskdb: tasks.TaskReader = Depends(get_taskdb)):
+def get_task(task_id: int, taskdb: tasks.TaskReader = Depends(get_taskdb)):
     try:
         task = tasks.get_task_by_id(taskdb, task_id)
         return TaskResp(
@@ -99,7 +99,7 @@ async def get_task(task_id: int, taskdb: tasks.TaskReader = Depends(get_taskdb))
 
 
 @router.put("/tasks/{task_id}", response_model=TaskResp)
-async def update_task(
+def update_task(
         task_id: int,
         req: UpdateTaskReq,
         taskdb: tasks.TaskReadWriter = Depends(get_taskdb)
@@ -127,7 +127,7 @@ async def update_task(
 
 
 @router.delete("/tasks/{task_id}", response_model=DeleteTaskResp)
-async def delete_task(task_id: int, taskdb: tasks.TaskWriter = Depends(get_taskdb)):
+def delete_task(task_id: int, taskdb: tasks.TaskWriter = Depends(get_taskdb)):
     try:
         tasks.delete_task(taskdb, task_id)
         return DeleteTaskResp(message="Task deleted successfully.")

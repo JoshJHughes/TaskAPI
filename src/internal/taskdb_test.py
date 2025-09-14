@@ -1,15 +1,28 @@
 import copy
+import os
+import tempfile
 
 import pytest
 from datetime import datetime
 from src.internal.tasks import Task, PrioEnum
-from src.internal.taskdb import InMemoryTaskDB
+from src.internal.taskdb import InMemoryTaskDB, SQLiteTaskDB
 from src.internal.errors import NotFoundError
 
 
-@pytest.fixture()
-def in_mem_task_db():
-    return InMemoryTaskDB()
+@pytest.fixture(params=["inmemory", "sqlite"])
+def task_db(request):
+    """Fixture that provides both InMemoryTaskDB and SQLiteTaskDB instances"""
+    if request.param == "inmemory":
+        yield InMemoryTaskDB()
+    elif request.param == "sqlite":
+        temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        temp_db.close()
+
+        db = SQLiteTaskDB(temp_db.name, "tasks")
+        yield db
+
+        db.close()
+        os.unlink(temp_db.name)
 
 @pytest.fixture
 def sample_task():
@@ -52,59 +65,59 @@ def multiple_tasks():
     ]
 
 class TestInMemoryDB:
-    def test_init(self, in_mem_task_db):
+    def test_init(self, task_db):
         """Initialisation should create an empty db"""
-        assert len(in_mem_task_db._db) == 0
+        assert len(task_db.get_all()) == 0
 
-    def test_post_inserts(self, in_mem_task_db, sample_task):
+    def test_post_inserts(self, task_db, sample_task):
         """Post should insert a new task"""
-        in_mem_task_db.post(sample_task)
+        task_db.post(sample_task)
 
-        assert in_mem_task_db.get_by_id(sample_task.id) == sample_task
+        assert task_db.get_by_id(sample_task.id) == sample_task
 
-    def test_post_updates(self, in_mem_task_db, sample_task):
+    def test_post_updates(self, task_db, sample_task):
         """Post should update task"""
-        in_mem_task_db.post(sample_task)
+        task_db.post(sample_task)
 
         updated = copy.deepcopy(sample_task)
         new_title = "new title"
         updated.title = new_title
         assert sample_task.title != updated.title
 
-        in_mem_task_db.post(updated)
-        assert in_mem_task_db.get_by_id(sample_task.id).title == new_title
+        task_db.post(updated)
+        assert task_db.get_by_id(sample_task.id).title == new_title
 
-    def test_get_all_empty(self, in_mem_task_db):
+    def test_get_all_empty(self, task_db):
         """Get all should return empty list for empty db"""
-        assert len(in_mem_task_db.get_all()) == 0
+        assert len(task_db.get_all()) == 0
 
-    def test_get_all(self, in_mem_task_db, multiple_tasks):
+    def test_get_all(self, task_db, multiple_tasks):
         """Get all should return all tasks in db"""
         for task in multiple_tasks:
-            in_mem_task_db.post(task)
+            task_db.post(task)
 
-        all_tasks = in_mem_task_db.get_all()
+        all_tasks = task_db.get_all()
         assert all_tasks == multiple_tasks
 
-    def test_get_by_id_missing(self, in_mem_task_db, sample_task):
+    def test_get_by_id_missing(self, task_db, sample_task):
         """Get by ID should raise NotFoundError if task missing"""
         with pytest.raises(NotFoundError):
-            in_mem_task_db.get_by_id(sample_task.id)
+            task_db.get_by_id(sample_task.id)
 
-    def test_get_by_id(self, in_mem_task_db, sample_task):
+    def test_get_by_id(self, task_db, sample_task):
         """Get by ID should return correct task for existing ID"""
-        in_mem_task_db.post(sample_task)
-        assert in_mem_task_db.get_by_id(sample_task.id) == sample_task
+        task_db.post(sample_task)
+        assert task_db.get_by_id(sample_task.id) == sample_task
 
-    def test_delete_missing(self, in_mem_task_db, sample_task):
+    def test_delete_missing(self, task_db, sample_task):
         """Delete should not error if task missing"""
-        in_mem_task_db.delete(sample_task.id)
+        task_db.delete(sample_task.id)
 
-    def test_delete(self, in_mem_task_db, sample_task):
+    def test_delete(self, task_db, sample_task):
         """Delete should remove task from db"""
-        in_mem_task_db.post(sample_task)
-        assert in_mem_task_db.get_by_id(sample_task.id) == sample_task
+        task_db.post(sample_task)
+        assert task_db.get_by_id(sample_task.id) == sample_task
 
-        in_mem_task_db.delete(sample_task.id)
+        task_db.delete(sample_task.id)
         with pytest.raises(NotFoundError):
-            in_mem_task_db.get_by_id(sample_task.id)
+            task_db.get_by_id(sample_task.id)
