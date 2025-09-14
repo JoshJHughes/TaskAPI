@@ -152,6 +152,36 @@ class TestTaskAPI:
         for task in resp_data:
             assert task["priority"] == PrioEnum.low
 
+    def test_get_all_tasks_search(self, client: TestClient, sample_post_req):
+        req1 = PostTasksReq(
+            title="Task 1",
+            priority=PrioEnum.high,
+            due_date=datetime(2025,9,10,5,3,43)
+        )
+        req2 = PostTasksReq(
+            title="2",
+            description="second task",
+            priority=PrioEnum.high,
+            due_date=datetime(2025, 9, 10, 5, 3, 43)
+        )
+        resp1 = client.post("/tasks", content=req1.model_dump_json())
+        resp2 = client.post("/tasks", content=req2.model_dump_json())
+        assert resp1.status_code == fastapi.status.HTTP_200_OK
+        assert resp2.status_code == fastapi.status.HTTP_200_OK
+
+        resp = client.get("/tasks?search=task")
+        assert resp.status_code == fastapi.status.HTTP_200_OK
+        resp_data = resp.json()
+        assert len(resp_data) == 2
+        assert resp1.json() in resp_data
+        assert resp2.json() in resp_data
+
+        resp = client.get("/tasks?search=SECOND")
+        assert resp.status_code == fastapi.status.HTTP_200_OK
+        resp_data = resp.json()
+        assert len(resp_data) == 1
+        assert resp2.json() in resp_data
+
     def test_get_task_by_id_success(self, client: TestClient, sample_post_req):
         req = sample_post_req
         post_resp = client.post("/tasks", content=req.model_dump_json())

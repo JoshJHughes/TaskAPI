@@ -1,6 +1,5 @@
 import datetime
 import sqlite3
-
 from src.internal.errors import NotFoundError
 from src.internal.tasks import Task, TaskID, PrioEnum
 
@@ -13,13 +12,16 @@ class InMemoryTaskDB:
         """Creates or updates a new task."""
         self._db[task.id] = task
 
-    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None) -> list[Task]:
+    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None, search: str | None = None) -> list[Task]:
         """Get all tasks. Return empty list if no tasks exist"""
         tasks = list(self._db.values())
         if completed is not None:
             tasks = [task for task in tasks if task.completed == completed]
         if priority is not None:
             tasks = [task for task in tasks if task.priority == priority]
+        if search is not None:
+            search_lower = search.lower()
+            tasks = [task for task in tasks if (search_lower in task.title.lower() or (task.description and search_lower in task.description.lower()))]
         return tasks
 
     def get_by_id(self, task_id: TaskID) -> Task:
@@ -88,7 +90,7 @@ class SQLiteTaskDB:
         """, data)
         self._con.commit()
 
-    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None) -> list[Task]:
+    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None, search: str | None = None) -> list[Task]:
         """Get all tasks. Return empty list if no tasks exist"""
         query = f"SELECT * FROM {self._table_name}"
         params = []
@@ -101,6 +103,11 @@ class SQLiteTaskDB:
         if priority is not None:
             conditions.append("priority = ?")
             params.append(int(priority))
+
+        if search is not None:
+            conditions.append("(title LIKE ? OR description LIKE ?)")
+            search_pattern = f"%{search}%"
+            params.extend([search_pattern, search_pattern])
 
         if conditions:
             query += " WHERE " + " AND ".join(conditions)

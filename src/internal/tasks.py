@@ -43,7 +43,7 @@ class TaskReader(Protocol):
     def get_by_id(self, task_id: TaskID) -> Task:
         ...
 
-    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None) -> list[Task]:
+    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None, search: str | None = None) -> list[Task]:
         ...
 
 class TaskWriter(Protocol):
@@ -74,8 +74,8 @@ def create_task(db: TaskReadWriter, req: CreateTaskReq) -> Task:
     db.post(task)
     return task
 
-def get_all_tasks(db: TaskReader, completed: bool | None = None, priority: PrioEnum | None = None) -> list[Task]:
-    return db.get_all(completed, priority)
+def get_all_tasks(db: TaskReader, completed: bool | None = None, priority: PrioEnum | None = None, search: str | None = None) -> list[Task]:
+    return db.get_all(completed, priority, search)
 
 def get_task_by_id(db: TaskReader, task_id: TaskID) -> Task:
     return db.get_by_id(task_id)
