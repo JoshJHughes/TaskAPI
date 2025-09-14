@@ -13,11 +13,13 @@ class InMemoryTaskDB:
         """Creates or updates a new task."""
         self._db[task.id] = task
 
-    def get_all(self, completed: bool | None) -> list[Task]:
+    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None) -> list[Task]:
         """Get all tasks. Return empty list if no tasks exist"""
         tasks = list(self._db.values())
         if completed is not None:
             tasks = [task for task in tasks if task.completed == completed]
+        if priority is not None:
+            tasks = [task for task in tasks if task.priority == priority]
         return tasks
 
     def get_by_id(self, task_id: TaskID) -> Task:
@@ -86,14 +88,22 @@ class SQLiteTaskDB:
         """, data)
         self._con.commit()
 
-    def get_all(self, completed: bool | None) -> list[Task]:
+    def get_all(self, completed: bool | None = None, priority: PrioEnum | None = None) -> list[Task]:
         """Get all tasks. Return empty list if no tasks exist"""
         query = f"SELECT * FROM {self._table_name}"
         params = []
+        conditions = []
 
         if completed is not None:
-            query += " WHERE completed = ?"
+            conditions.append("completed = ?")
             params.append(completed)
+
+        if priority is not None:
+            conditions.append("priority = ?")
+            params.append(int(priority))
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
 
         res = self._cur.execute(query, params)
         rows = res.fetchall()

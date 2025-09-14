@@ -33,7 +33,7 @@
 ### get all tasks
 
 `curl --request GET \
-  --url http://localhost:8000/tasks \
+  --url 'http://localhost:8000/tasks?completed=false&priority=1' \
   --header 'Content-Type: application/json'`
 
 ### get task by id

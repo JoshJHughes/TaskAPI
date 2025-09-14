@@ -117,6 +117,24 @@ class TestInMemoryDB:
         for task in all_tasks:
             assert task.completed == False
 
+    def test_get_all_priority(self, task_db, multiple_tasks):
+        """Get all should return all tasks in db"""
+        for task in multiple_tasks:
+            task_db.post(task)
+
+        all_tasks = task_db.get_all(priority=PrioEnum.medium)
+        for task in all_tasks:
+            assert task.priority == PrioEnum.medium
+
+    def test_get_all_priority_and_completed(self, task_db, multiple_tasks):
+        """Get all should return all tasks in db"""
+        for task in multiple_tasks:
+            task_db.post(task)
+
+        all_tasks = task_db.get_all(priority=PrioEnum.high, completed=False)
+        for task in all_tasks:
+            assert task.priority == PrioEnum.high
+
     def test_get_by_id_missing(self, task_db, sample_task):
         """Get by ID should raise NotFoundError if task missing"""
         with pytest.raises(NotFoundError):
